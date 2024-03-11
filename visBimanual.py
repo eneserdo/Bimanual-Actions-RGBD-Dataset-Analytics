@@ -37,6 +37,40 @@ TAKES=['take_{}'.format(take_i) for take_i in range(10)]
 ACTIONS = ['idle', 'approach', 'retreat', 'lift', 'place', 'hold', 'pour', 'cut', 'hammer', 'saw',
            'stir', 'screw', 'drink', 'wipe']
 
+
+REL_SHORTHAND= {"contact": "Cntc",
+                "above": "Abv",
+                "below": "Blw",
+                "left of": "Lo",
+                "right of": "Ro",
+                "behind of": "Be",
+                "in front of": "Fro",
+                "inside": "In",
+                "surround": "Sur",
+                "moving together": "MT",
+                "halting together": "HT",
+                "fixed moving together": "FMT",
+                "getting close": "GC",
+                "moving apart": "MA",
+                "stable": "S"}
+
+REL_SUBSET= ["contact", 
+             "above", 
+            #  "below", 
+             "left of",
+            #  "right of",
+             "behind of",
+            #  "in front of",
+             "inside",
+            #  "surround",
+             "moving together",
+             "halting together",
+             "fixed moving together",
+             "getting close",
+             "moving apart",
+            #  "stable"
+             ]
+
 def getAllChunks(base_dir, subject, task, take):
     # chunk_parent=base_dir+f"{subject}/{task}/{take}/rgb/"
     chunk_parent=opj(base_dir, subject, task, take, "rgb")
@@ -71,26 +105,30 @@ def getRelations(base_dir, subject, task, take, i):
         _3d = json.load(f)
 
     
-    log=""
-    text=""
+    # log=""
+    text_list=[]
     for relation in relations:
         oi=relation["object_index"]
         si=relation["subject_index"]
 
-        log = log + _3d[oi]["class_name"]+ " - " + relation["relation_name"] + " - " + _3d[si]["class_name"] +"\n"
+        # log = log + _3d[oi]["class_name"]+ " - " + relation["relation_name"] + " - " + _3d[si]["class_name"] +"\n"
 
-        if relation["relation_name"]=="contact":
-            
-            
-            
+        # if relation["relation_name"]=="contact":
+        if relation["relation_name"] in REL_SUBSET:
+        
             # text=text + f"({oi})"+object_mapping[oi] + " - " + f"({si})"+ object_mapping[si] + "\n"
-            if oi < si:
-                text=text + _3d[oi]["class_name"]+ " - " + _3d[si]["class_name"] +"\n"
+            # if oi < si:
+                # text=text + _3d[oi]["class_name"]+ " - " + _3d[si]["class_name"] +"\n"
+            # text=text + _3d[oi]["class_name"]+ " - " + _3d[si]["class_name"] +"\n"
+            # text_list.append(f"{_3d[oi]['class_name']} - {REL_SHORTHAND[relation['relation_name']]} - {_3d[si]['class_name']}\n")
+            text_list.append(f"{oi} - {REL_SHORTHAND[relation['relation_name']]} - {si}")
 
-    print("#"*20)
-    print("#"*20)
-    print("FRAME:\n", log, "\n")
-    return text
+    # print("#"*20)
+    # print("#"*20)
+    # print("FRAME:\n", log, "\n")
+    text_list = sorted(text_list)
+    return text_list
+
 
 def getActions(base_dir, subject, task, take, i):
 
@@ -135,21 +173,20 @@ def getActions(base_dir, subject, task, take, i):
 
 def main(sub=1, tsk=1, tk=0):
     subject, task, take = SUBJECTS[sub], TASKS[tsk], TAKES[tk]
+    print("Reading", subject, task, take)
+
     base_dir="/home/enerd/bimanual"
 
     f_dir="/home/enerd/bimanual/bimacs_rgbd_data/bimacs_rgbd_data"
-
-
     frames_path_list=getAllChunks(f_dir, subject, task, take)
-    print("len(frames_path_list):", len(frames_path_list))
 
-    # for i in range(len(frames_path_list)):
     frame_idx=0
     while True:
 
         frame_rgb=frames_path_list[frame_idx]
-        # text=getRelations(base_dir, subject, task, take, frame_idx)
-        text=""
+        rel_text_list=getRelations(base_dir, subject, task, take, frame_idx)
+        
+        obj_text=""
         left_act, right_act=getActions(base_dir, subject, task, take, frame_idx)
 
         frame_rgb=cv2.imread(frame_rgb)
@@ -160,31 +197,39 @@ def main(sub=1, tsk=1, tk=0):
 
         
         bbox_array=np.zeros((len(objects_3d), 6))
+        obj_dict={}
 
         for obj_idx, obj in enumerate(objects_3d):
+            obj_dict[obj_idx]=obj["class_name"]
+
             bbox=obj["bounding_box"]
             bbox_array[obj_idx] = np.array([bbox["x0"], bbox["x1"], bbox["y0"], bbox["y1"], bbox["z0"], bbox["z1"]])
-            text+= str(obj_idx+1) + " " + obj["class_name"] + "\n"
-            # print(obj["class_name"])
+            certainty = round(obj["certainty"]*100, 3)
+            # text+= str(obj_idx) + " " + obj["class_name"] + str(certainty) + "\n"
+            obj_text+= f"{obj_idx} {obj['class_name']} - {certainty}\n"
 
         get_bboxed_image(frame_rgb, bbox_array)
         # # # # # # # #  BBOX ENDS  # # # # # # # #
 
         tone_down=20
         frame_rgb = np.where(frame_rgb < tone_down, 0, frame_rgb-tone_down)
-
         frame_rgb=cv2.resize(frame_rgb, None, fx=1.5, fy=1.5)
-
-        infograh=np.zeros((frame_rgb.shape[0], 400, 3), dtype=np.uint8)
-
         cv2.putText(frame_rgb, str(frame_idx), (10, 35), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
         cv2.putText(frame_rgb, left_act+", " + right_act, (90, 35), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
-        
         cv2.putText(frame_rgb, subject + " " +  task + " " + take, (10, 700), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 1)
-        
-        infograh=add_text_to_image(infograh, text, bg_color_rgb=(255,255,255))
 
-        combined=np.hstack([frame_rgb, infograh])
+
+        info_img1=np.zeros((frame_rgb.shape[0], 400, 3), dtype=np.uint8)
+        info_img1=add_text_to_image(info_img1, obj_text, bg_color_rgb=(255,255,255))
+        
+        info_img2=np.ones((frame_rgb.shape[0], 200, 3), dtype=np.uint8)*10
+        info_img3=np.ones((frame_rgb.shape[0], 200, 3), dtype=np.uint8)*10
+
+        info_img2=add_text_to_image(info_img2, "\n".join(rel_text_list[:40]), bg_color_rgb=(255,255,255), font_scale=0.5)
+        info_img3=add_text_to_image(info_img3, "\n".join(rel_text_list[40:]), bg_color_rgb=(255,255,255), font_scale=0.5)
+
+
+        combined=np.hstack([frame_rgb, info_img1, info_img2, info_img3])
 
         cv2.imshow("combined", combined)
         key=cv2.waitKey(0) & 0xFF
@@ -200,7 +245,8 @@ def main(sub=1, tsk=1, tk=0):
 
 
 if __name__ == '__main__':
-    # try:
-        # main(sys.argv[1], sys.argv[2], sys.argv[3])
-    # except:
-    main()
+
+    if len(sys.argv) == 4:
+        main(int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]))
+    else:
+        main()

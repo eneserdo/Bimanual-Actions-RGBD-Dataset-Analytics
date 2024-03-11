@@ -124,7 +124,7 @@ def convert_from_xyz(x, y, z, is_np=False):
 
 
 
-def get_bboxed_image(image, bbox_list):
+def get_bboxed_image(image, BB_DIR):
     # bbox_list: N x 6 : [x0, x1, y0, y1, z0, z1]
     # bbox_list -> vertices_xyz -> vertices_uv -> edges
     """
@@ -144,6 +144,21 @@ def get_bboxed_image(image, bbox_list):
           |/
           .----> +x 
     """
+    with open(BB_DIR) as f:
+        objects_3d = json.load(f)
+
+    
+    bbox_list=np.zeros((len(objects_3d), 6))
+
+    obj_text = ""
+
+    for obj_idx, obj in enumerate(objects_3d):
+        bbox=obj["bounding_box"]
+        bbox_list[obj_idx] = np.array([bbox["x0"], bbox["x1"], bbox["y0"], bbox["y1"], bbox["z0"], bbox["z1"]])
+        certainty = round(obj["certainty"]*100, 3)
+        # text+= str(obj_idx) + " " + obj["class_name"] + str(certainty) + "\n"
+        obj_text+= f"{obj_idx} {obj['class_name']} - {certainty}\n"
+
 
     vertex_pairs = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
 
@@ -163,7 +178,7 @@ def get_bboxed_image(image, bbox_list):
         vertices_uv = convert_from_xyz(vertices_xyz[:, 0], vertices_xyz[:, 1], vertices_xyz[:, 2], is_np=True)
         
         # name each box
-        cv2.putText(image, f"{b_idx}", (int(vertices_uv[6][0]), int(vertices_uv[6][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+        cv2.putText(image, f"{b_idx}", (int(vertices_uv[6][0]), int(vertices_uv[6][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[b_idx], 1)
 
         # get edges from vertices
         for v1, v2 in vertex_pairs:
@@ -186,7 +201,49 @@ def get_bboxed_image(image, bbox_list):
                 print("p1:", p1, "p2:", p2)
                 print("p1_xyz:", vertices_xyz[v1], "p2_xyz:", vertices_xyz[v2])
                 raise ValueError("Error in cv2.line")
+    return obj_text
 
+
+def get_2d_bboxed_image(image, BB_DIR):
+    # bbox_list: N x 4 : [h, w, x, y] (in between 0 and 1)
+
+    IMG_HEIGHT, IMG_WIDTH, _ = image.shape
+
+    with open(BB_DIR) as f:
+        objects_2d = json.load(f)
+    
+    obj_text = ""
+
+    bbox_list=np.zeros((len(objects_2d), 4))
+
+    for obj_idx, obj in enumerate(objects_2d):
+        bbox=obj["bounding_box"]
+        bbox_list[obj_idx] = np.array([IMG_WIDTH*bbox["x"], 
+                                       IMG_HEIGHT*bbox["y"],
+                                       IMG_WIDTH*bbox["w"],
+                                       IMG_HEIGHT*bbox["h"]], dtype=int)
+        
+        obj_text+= f"{obj_idx} "
+
+        for candidate in obj["candidates"]:
+            certainty = round(candidate["certainty"]*100, 3)
+            # text+= str(obj_idx) + " " + obj["class_name"] + str(certainty) + "\n"
+            obj_text+= f"{candidate['class_name']} - {certainty}; "
+        obj_text += "\n"
+
+    for b_idx, bbox in enumerate(bbox_list):
+
+        cx, cy, w, h = bbox.astype(int)        
+
+        half_w, half_h = w//2, h//2
+
+        cv2.putText(image, f"{b_idx}", (cx+half_w, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[b_idx], 1)
+
+        cv2.rectangle(image, (cx-half_w, cy-half_h), (cx+half_w, cy+half_h), COLORS[b_idx], 1)
+
+
+
+    return obj_text
 
 if __name__ == "__main__":
     BASE_DIR="/home/enerd/bimanual"

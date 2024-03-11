@@ -8,7 +8,7 @@ import os
 from os.path import join as opj
 import sys
 
-from visBoundingBox import get_bboxed_image
+from visBoundingBox import get_2d_bboxed_image, get_bboxed_image
 
 # OBJECT_MAPPING={0: "bowl",
 #                 1: "knife",
@@ -181,34 +181,24 @@ def main(sub=1, tsk=1, tk=0):
     frames_path_list=getAllChunks(f_dir, subject, task, take)
 
     frame_idx=0
+    MODE="2D" # or 3D
+
     while True:
 
         frame_rgb=frames_path_list[frame_idx]
         rel_text_list=getRelations(base_dir, subject, task, take, frame_idx)
         
-        obj_text=""
         left_act, right_act=getActions(base_dir, subject, task, take, frame_idx)
 
         frame_rgb=cv2.imread(frame_rgb)
         # # # # # # # #  BBOX Starts # # # # # # # #
-        BB_DIR=opj(base_dir, "bimacs_derived_data", subject, task, take, "3d_objects", f"frame_{frame_idx}.json")
-        with open(BB_DIR) as f:
-            objects_3d = json.load(f)
+        if MODE=="3D":
+            BB_DIR=opj(base_dir, "bimacs_derived_data", subject, task, take, "3d_objects", f"frame_{frame_idx}.json")
+            obj_text=get_bboxed_image(frame_rgb, BB_DIR)
+        elif MODE=="2D":
+            BB_DIR=opj(base_dir, "bimacs_derived_data", subject, task, take, "2d_objects", f"frame_{frame_idx}.json")
+            obj_text=get_2d_bboxed_image(frame_rgb, BB_DIR)
 
-        
-        bbox_array=np.zeros((len(objects_3d), 6))
-        obj_dict={}
-
-        for obj_idx, obj in enumerate(objects_3d):
-            obj_dict[obj_idx]=obj["class_name"]
-
-            bbox=obj["bounding_box"]
-            bbox_array[obj_idx] = np.array([bbox["x0"], bbox["x1"], bbox["y0"], bbox["y1"], bbox["z0"], bbox["z1"]])
-            certainty = round(obj["certainty"]*100, 3)
-            # text+= str(obj_idx) + " " + obj["class_name"] + str(certainty) + "\n"
-            obj_text+= f"{obj_idx} {obj['class_name']} - {certainty}\n"
-
-        get_bboxed_image(frame_rgb, bbox_array)
         # # # # # # # #  BBOX ENDS  # # # # # # # #
 
         tone_down=20
@@ -219,11 +209,11 @@ def main(sub=1, tsk=1, tk=0):
         cv2.putText(frame_rgb, subject + " " +  task + " " + take, (10, 700), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 1)
 
 
-        info_img1=np.zeros((frame_rgb.shape[0], 400, 3), dtype=np.uint8)
-        info_img1=add_text_to_image(info_img1, obj_text, bg_color_rgb=(255,255,255))
+        info_img1=np.zeros((frame_rgb.shape[0], 450, 3), dtype=np.uint8)
+        info_img1=add_text_to_image(info_img1, obj_text, bg_color_rgb=(255,255,255), font_scale=0.7)
         
-        info_img2=np.ones((frame_rgb.shape[0], 200, 3), dtype=np.uint8)*10
-        info_img3=np.ones((frame_rgb.shape[0], 200, 3), dtype=np.uint8)*10
+        info_img2=np.ones((frame_rgb.shape[0], 180, 3), dtype=np.uint8)*10
+        info_img3=np.ones((frame_rgb.shape[0], 180, 3), dtype=np.uint8)*10
 
         info_img2=add_text_to_image(info_img2, "\n".join(rel_text_list[:40]), bg_color_rgb=(255,255,255), font_scale=0.5)
         info_img3=add_text_to_image(info_img3, "\n".join(rel_text_list[40:]), bg_color_rgb=(255,255,255), font_scale=0.5)
@@ -240,6 +230,9 @@ def main(sub=1, tsk=1, tk=0):
             frame_idx=(frame_idx-1)%len(frames_path_list)
         elif key==ord("d"):
             frame_idx=(frame_idx+1)%len(frames_path_list)
+        elif key==ord("s"):
+            MODE="3D" if MODE=="2D" else "2D"
+
         
     cv2.destroyAllWindows()
 

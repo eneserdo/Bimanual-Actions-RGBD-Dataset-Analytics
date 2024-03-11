@@ -21,6 +21,29 @@ offset_d=-1300
 
 SCALE = 1
 
+COLORS =[
+    (0, 0, 255),
+    (0, 255, 0),
+    (255, 0, 0),
+
+
+    (0, 255, 255),
+    (255, 0, 255),
+    (255, 255, 0),
+    
+    (200, 100, 0),
+    (200, 0, 100),    
+    (100, 0, 200),
+    (100, 200, 0),
+    (0, 100, 200),
+    (0, 200, 100),
+    
+    (0, 0, 100),
+    (0, 100, 0),
+    (100, 0, 0),
+]
+
+
 
 def getRotationMatrix(w0: np.ndarray, theta: float = None):
     """Calculates rotation matrix using Rodrigue's formula (norm of the w is assigned to theta), (theta in radian)"""
@@ -140,7 +163,7 @@ def get_bboxed_image(image, bbox_list):
         vertices_uv = convert_from_xyz(vertices_xyz[:, 0], vertices_xyz[:, 1], vertices_xyz[:, 2], is_np=True)
         
         # name each box
-        cv2.putText(image, f"{b_idx+1}", (int(vertices_uv[6][0]), int(vertices_uv[6][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+        cv2.putText(image, f"{b_idx}", (int(vertices_uv[6][0]), int(vertices_uv[6][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
         # get edges from vertices
         for v1, v2 in vertex_pairs:
@@ -157,7 +180,7 @@ def get_bboxed_image(image, bbox_list):
             # p2=np.flip(p2)
 
             try:
-                cv2.line(image, p1, p2, (0, 0, 100), 1)
+                cv2.line(image, p1, p2, COLORS[b_idx], 1)
             except:
                 print("v1:", v1, "v2:", v2)
                 print("p1:", p1, "p2:", p2)

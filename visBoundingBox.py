@@ -124,7 +124,7 @@ def convert_from_xyz(x, y, z, is_np=False):
 
 
 
-def get_bboxed_image(image, BB_DIR):
+def get_bboxed_image(image, BB_DIR, is_3d=True):
     # bbox_list: N x 6 : [x0, x1, y0, y1, z0, z1]
     # bbox_list -> vertices_xyz -> vertices_uv -> edges
     """
@@ -177,30 +177,40 @@ def get_bboxed_image(image, BB_DIR):
                               
         vertices_uv = convert_from_xyz(vertices_xyz[:, 0], vertices_xyz[:, 1], vertices_xyz[:, 2], is_np=True)
         
-        # name each box
-        cv2.putText(image, f"{b_idx}", (int(vertices_uv[6][0]), int(vertices_uv[6][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[b_idx], 1)
+        if is_3d:
+            # name each box
+            cv2.putText(image, f"{b_idx}", (int(vertices_uv[6][0]), int(vertices_uv[6][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[b_idx], 1)
 
-        # get edges from vertices
-        for v1, v2 in vertex_pairs:
-            # draw edge from vertex_pairs[v1] to vertex_pairs[v2]
+            # get edges from vertices
+            for v1, v2 in vertex_pairs:
+                # draw edge from vertex_pairs[v1] to vertex_pairs[v2]
 
-            if np.isnan(vertices_uv[v1]).any() or np.isnan(vertices_uv[v2]).any():
-                print("Nan in bbox vertices!")
-                continue
+                if np.isnan(vertices_uv[v1]).any() or np.isnan(vertices_uv[v2]).any():
+                    print("Nan in bbox vertices!")
+                    continue
 
-            p1=vertices_uv[v1].astype(int)
-            # p1=np.flip(p1)
+                p1=vertices_uv[v1].astype(int)
+                # p1=np.flip(p1)
 
-            p2=vertices_uv[v2].astype(int)
-            # p2=np.flip(p2)
+                p2=vertices_uv[v2].astype(int)
+                # p2=np.flip(p2)
 
-            try:
-                cv2.line(image, p1, p2, COLORS[b_idx], 1)
-            except:
-                print("v1:", v1, "v2:", v2)
-                print("p1:", p1, "p2:", p2)
-                print("p1_xyz:", vertices_xyz[v1], "p2_xyz:", vertices_xyz[v2])
-                raise ValueError("Error in cv2.line")
+                try:
+                    cv2.line(image, p1, p2, COLORS[b_idx], 1)
+                except:
+                    print("v1:", v1, "v2:", v2)
+                    print("p1:", p1, "p2:", p2)
+                    print("p1_xyz:", vertices_xyz[v1], "p2_xyz:", vertices_xyz[v2])
+                    raise ValueError("Error in cv2.line")
+        else:
+            x0 = np.min(vertices_uv[:, 0]).astype(int)
+            x1 = np.max(vertices_uv[:, 0]).astype(int)
+            y0 = np.min(vertices_uv[:, 1]).astype(int)
+            y1 = np.max(vertices_uv[:, 1]).astype(int)
+
+            cv2.rectangle(image, (x0, y0), (x1, y1), COLORS[b_idx], 1)
+
+
     return obj_text
 
 
@@ -244,6 +254,9 @@ def get_2d_bboxed_image(image, BB_DIR):
 
 
     return obj_text
+
+
+
 
 if __name__ == "__main__":
     BASE_DIR="/home/enerd/bimanual"

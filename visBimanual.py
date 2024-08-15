@@ -181,7 +181,7 @@ def main(sub=1, tsk=1, tk=0):
     frames_path_list=getAllChunks(f_dir, subject, task, take)
 
     frame_idx=0
-    MODE="2D" # or 3D
+    MODE=0 # 2D, 2Dfrom3D, 3D
 
     while True:
 
@@ -192,12 +192,15 @@ def main(sub=1, tsk=1, tk=0):
 
         frame_rgb=cv2.imread(frame_rgb)
         # # # # # # # #  BBOX Starts # # # # # # # #
-        if MODE=="3D":
+        if MODE==0:
             BB_DIR=opj(base_dir, "bimacs_derived_data", subject, task, take, "3d_objects", f"frame_{frame_idx}.json")
             obj_text=get_bboxed_image(frame_rgb, BB_DIR)
-        elif MODE=="2D":
+        elif MODE==1:
             BB_DIR=opj(base_dir, "bimacs_derived_data", subject, task, take, "2d_objects", f"frame_{frame_idx}.json")
             obj_text=get_2d_bboxed_image(frame_rgb, BB_DIR)
+        elif MODE==2:
+            BB_DIR=opj(base_dir, "bimacs_derived_data", subject, task, take, "3d_objects", f"frame_{frame_idx}.json")
+            obj_text=get_bboxed_image(frame_rgb, BB_DIR, is_3d=False)
 
         # # # # # # # #  BBOX ENDS  # # # # # # # #
 
@@ -231,7 +234,7 @@ def main(sub=1, tsk=1, tk=0):
         elif key==ord("d"):
             frame_idx=(frame_idx+1)%len(frames_path_list)
         elif key==ord("s"):
-            MODE="3D" if MODE=="2D" else "2D"
+            MODE = (MODE+1) % 3
 
         
     cv2.destroyAllWindows()
